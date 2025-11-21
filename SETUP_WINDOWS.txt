@@ -1,0 +1,22 @@
+GUIA DE CONFIGURACAO COM DOCKER DESKTOP NO WINDOWS
+===================================================
+
+PRE-REQUISITOS:
+1. Docker Desktop instalado (https://www.docker.com/products/docker-desktop)
+2. PowerShell ou CMD aberto
+
+PASSOS:
+1. Abra PowerShell ou CMD
+2. Navegue ate o diretorio: cd C:\caminho\para\avaliacao-psicologica
+3. Execute: docker-compose up -d
+4. Acesse em seu navegador: http://localhost:3000
+
+COMANDOS UTEIS:
+- Ver status: docker-compose ps
+- Ver logs: docker-compose logs -f app
+- Parar: docker-compose down
+- Resetar banco: docker-compose down -v && docker-compose up -d
+
+Se a porta 3000 estiver em uso, edite docker-compose.yml e mude:
+  ports:
+    - "3001:3000"
