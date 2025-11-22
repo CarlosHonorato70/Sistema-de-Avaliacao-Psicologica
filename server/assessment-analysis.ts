@@ -31,9 +31,6 @@ export interface AssessmentScores {
   classifications: Record<string, string>;
 }
 
-/**
- * Calcula as pontuações por domínio
- */
 export function calculateScores(responses: number[]): AssessmentScores {
   const scores: ScoresByDomain = {
     intellectual: 0,
@@ -43,16 +40,14 @@ export function calculateScores(responses: number[]): AssessmentScores {
     motor: 0,
   };
 
-  // Calcular soma por domínio
   Object.entries(DOMAIN_QUESTIONS).forEach(([domain, questionIndices]) => {
     const domainScore = questionIndices.reduce((sum, qIndex) => {
-      const responseIndex = qIndex - 1; // Converter para índice 0-based
+      const responseIndex = qIndex - 1;
       return sum + (responses[responseIndex] || 0);
     }, 0);
     scores[domain as keyof ScoresByDomain] = domainScore;
   });
 
-  // Calcular percentuais
   const percentages: PercentagesByDomain = {
     intellectual: (scores.intellectual / (16 * 4)) * 100,
     emotional: (scores.emotional / (16 * 4)) * 100,
@@ -61,7 +56,6 @@ export function calculateScores(responses: number[]): AssessmentScores {
     motor: (scores.motor / (10 * 4)) * 100,
   };
 
-  // Classificar por faixa
   const classifications: Record<string, string> = {};
   Object.entries(percentages).forEach(([domain, percentage]) => {
     if (percentage < 50) {
@@ -76,9 +70,6 @@ export function calculateScores(responses: number[]): AssessmentScores {
   return { scores, percentages, classifications };
 }
 
-/**
- * Gera análise clínica usando IA baseada no prompt fornecido
- */
 export async function generateClinicalAnalysis(
   responses: number[],
   patientName: string,
@@ -93,63 +84,115 @@ export async function generateClinicalAnalysis(
 }> {
   const scores = calculateScores(responses);
 
-  // Preparar dados para o prompt
-  const responseTable = Object.entries(DOMAIN_QUESTIONS)
-    .map(([domain, questionIndices]) => {
-      const domainResponses = questionIndices.map((qIndex) => responses[qIndex - 1]);
-      return `${domain.toUpperCase()}: Questões ${questionIndices.join(", ")} = [${domainResponses.join(", ")}]`;
-    })
-    .join("\n");
+  // Preparar tabela detalhada com todas as 68 respostas
+  let responsesTable = "";
+  const domainNames: Record<string, string> = {
+    intellectual: "Intelectual",
+    emotional: "Emocional",
+    imaginative: "Imaginativa",
+    sensorial: "Sensorial",
+    motor: "Motora",
+  };
 
-  const systemPrompt = `Você é um especialista clínico em superdotação e altas habilidades, fundamentado no "Manual Clínico para Adultos Superdotados" e em modelos consagrados de sobre-excitabilidade psicomotora (Dabrowski, Renzulli, Gagné).`;
+  Object.entries(DOMAIN_QUESTIONS).forEach(([domain, questionIndices]) => {
+    const domainResponses = questionIndices
+      .map((qIndex) => `Q${qIndex}: ${responses[qIndex - 1] ?? "X"}`)
+      .join(", ");
+    responsesTable += `\nSE ${domainNames[domain]} - Questoes de ${questionIndices[0]} a ${questionIndices[questionIndices.length - 1]}: ${domainResponses}`;
+  });
+
+  const systemPrompt = `Voce eh um especialista clinico em superdotacao e altas habilidades, fundamentado no Manual Clinico para Adultos Superdotados e em modelos consagrados de sobre-excitabilidade psicomotora (Dabrowski, Renzulli, Gagne).`;
 
   const userPrompt = `DADOS DO PACIENTE:
 - Nome: ${patientName}
-- Idade: ${patientAge || "Não informada"}
-- Data da Avaliação: ${assessmentDate ? assessmentDate.toLocaleDateString("pt-BR") : "Não informada"}
-- Instrumento: Questionário de Indicadores de Sobre-excitabilidade nas Altas Habilidades/Superdotação (68 questões)
+- Idade: ${patientAge || "Nao informada"}
+- Data da Avaliacao: ${assessmentDate ? assessmentDate.toLocaleDateString("pt-BR") : "Nao informada"}
+- Instrumento: Questionario de Indicadores de Sobre-excitabilidade nas Altas Habilidades/Superdotacao (68 questoes)
 
-RESPOSTAS DO QUESTIONÁRIO (68 questões sequenciais):
-${responseTable}
+RESPOSTAS DO QUESTIONARIO (68 questoes sequenciais):
+${responsesTable}
 
-ESTRUTURA DE DOMÍNIOS E RESPOSTAS:
-SE Intelectual - Questões de 1 a 16: Pontuação ${scores.scores.intellectual} (${scores.percentages.intellectual.toFixed(1)}%) - ${scores.classifications.intellectual}
-SE Emocional - Questões de 17 a 32: Pontuação ${scores.scores.emotional} (${scores.percentages.emotional.toFixed(1)}%) - ${scores.classifications.emotional}
-SE Imaginativa - Questões de 33 a 49: Pontuação ${scores.scores.imaginative} (${scores.percentages.imaginative.toFixed(1)}%) - ${scores.classifications.imaginative}
-SE Sensorial - Questões de 50 a 58: Pontuação ${scores.scores.sensorial} (${scores.percentages.sensorial.toFixed(1)}%) - ${scores.classifications.sensorial}
-SE Motora - Questões de 59 a 68: Pontuação ${scores.scores.motor} (${scores.percentages.motor.toFixed(1)}%) - ${scores.classifications.motor}
+ESTRUTURA DE DOMINIOS E RESPOSTAS:
+SE Intelectual - Questoes de 1 a 16: Pontuacao ${scores.scores.intellectual} (${scores.percentages.intellectual.toFixed(1)}%) - ${scores.classifications.intellectual}
+SE Emocional - Questoes de 17 a 32: Pontuacao ${scores.scores.emotional} (${scores.percentages.emotional.toFixed(1)}%) - ${scores.classifications.emotional}
+SE Imaginativa - Questoes de 33 a 49: Pontuacao ${scores.scores.imaginative} (${scores.percentages.imaginative.toFixed(1)}%) - ${scores.classifications.imaginative}
+SE Sensorial - Questoes de 50 a 58: Pontuacao ${scores.scores.sensorial} (${scores.percentages.sensorial.toFixed(1)}%) - ${scores.classifications.sensorial}
+SE Motora - Questoes de 59 a 68: Pontuacao ${scores.scores.motor} (${scores.percentages.motor.toFixed(1)}%) - ${scores.classifications.motor}
 
-ESCALA DE RESPOSTA: 0 = Nunca | 1 = Às vezes | 3 = Frequentemente | 4 = Sempre
+ESCALA DE RESPOSTA: 0 = Nunca | 1 = As vezes | 3 = Frequentemente | 4 = Sempre
+Obs.: Perguntas nao respondidas sao indicadas por um X.
 
 TAREFA:
-1. EXTRAÇÃO PRECISA DE DADOS - Organize as 68 respostas em uma tabela por domínio - Indique a resposta (0, 1, 3 ou 4) para CADA questão - Calcule pontuação total por domínio - Calcule percentual de cada domínio em relação ao máximo possível
 
-2. INTERPRETAÇÃO CLÍNICA POR DOMÍNIO Para cada domínio (Intelectual, Emocional, Imaginativa, Sensorial, Motora): - Descreva o que a pontuação representa clinicamente - Identifique questões-chave com respostas altas (3-4) ou baixas (0-1) - Explique o significado das respostas em contexto de superdotação - Aponte padrões consistentes ou inconsistentes
+1. EXTRACAO PRECISA DE DADOS
+- Organize as 68 respostas em uma tabela por dominio
+- Indique a resposta (0, 1, 3 ou 4) para CADA questao
+- Calcule pontuacao total por dominio
+- Calcule percentual de cada dominio em relacao ao maximo possivel
 
-3. ANÁLISE DO PERFIL MULTIDIMENSIONAL - Identifique o padrão geral de sobre-excitabilidade (uniforme vs. heterogêneo) - Destaque domínios fortes (70%+), moderados (50-70%), fracos (<50%) - Explique como o padrão específico correlaciona com tipos de superdotação: * Superdotado Intelectual Puro (alta intelectual, outras variáveis) * Superdotado Criativo (alta intelectual + imaginativa) * Superdotado Emocional/Sensível (alta emocional + sensorial) * Superdotado Motora (alta motora + respostas variáveis) * Superdotado Multidimensional (múltiplos domínios elevados)
+2. INTERPRETACAO CLINICA POR DOMINIO
+Para cada dominio (Intelectual, Emocional, Imaginativa, Sensorial, Motora):
+- Descreva o que a pontuacao representa clinicamente
+- Identifique questoes-chave com respostas altas (3-4) ou baixas (0-1)
+- Explique o significado das respostas em contexto de superdotacao
+- Aponte padroes consistentes ou inconsistentes
 
-4. CRITÉRIOS DE SUPERDOTAÇÃO Avalie cada critério: ✅ Capacidade intelectual avançada (baseado em sobre-excitabilidade intelectual + imaginativa) ✅ Criatividade e pensamento divergente (baseado em imaginativa + sensorial) ✅ Comprometimento com tarefa (baseado em padrão de concentração e intensidade) ✅ Profundidade perceptual (baseado em sensorial + intelectual) ✅ Sobre-excitabilidade psicomotora multidimensional (número de domínios em níveis moderado-alto)
+3. ANALISE DO PERFIL MULTIDIMENSIONAL
+- Identifique o padrao geral de sobre-excitabilidade (uniforme vs. heterogeneo)
+- Destaque dominios fortes (70%+), moderados (50-70%), fracos (<50%)
+- Explique como o padrao especifico correlaciona com tipos de superdotacao:
+  * Superdotado Intelectual Puro (alta intelectual, outras variaveis)
+  * Superdotado Criativo (alta intelectual + imaginativa)
+  * Superdotado Emocional/Sensivel (alta emocional + sensorial)
+  * Superdotado Motora (alta motora + respostas variaveis)
+  * Superdotado Multidimensional (multiplos dominios elevados)
 
-5. DIAGNÓSTICO FINAL Conclusão clara sobre a presença ou ausência de superdotação/altas habilidades - Indique nível de confiança (Alta/Moderada/Baixa) - Especifique tipo/perfil de superdotação detectado
+4. CRITERIOS DE SUPERDOTACAO
+Avalie cada criterio:
+- Capacidade intelectual avancada (baseado em sobre-excitabilidade intelectual + imaginativa)
+- Criatividade e pensamento divergente (baseado em imaginativa + sensorial)
+- Comprometimento com tarefa (baseado em padrao de concentracao e intensidade)
+- Profundidade perceptual (baseado em sensorial + intelectual)
+- Sobre-excitabilidade psicomotora multidimensional (numero de dominios em niveis moderado-alto)
 
-6. CONSIDERAÇÕES ESPECIAIS POR IDADE Se adulto (25+): - Avalie possível masking emocional ou regulação desenvolvida - Considere canalização de energias em idade adulta - Interprete padrões atípicos como adaptação psicossocial Se criança/adolescente (<18): - Avalie se padrão é developmentalmente apropriado - Identifique áreas de aceleração potencial - Considere necessidade de enriquecimento ambiental
+5. DIAGNOSTICO FINAL
+Conclusao clara sobre a presenca ou ausencia de superdotacao/altas habilidades
+- Indique nivel de confianca (Alta/Moderada/Baixa)
+- Especifique tipo/perfil de superdotacao detectado
 
-7. RECOMENDAÇÕES CLÍNICAS - Avaliação complementar necessária (testes de QI, criatividade, aptidões específicas) - Intervenções educacionais/clínicas recomendadas - Orientação vocacional/ocupacional baseada no perfil - Estratégias de bem-estar baseadas em padrão de sobre-excitabilidade
+6. CONSIDERACOES ESPECIAIS POR IDADE
+Se adulto (25+):
+- Avalie possivel masking emocional ou regulacao desenvolvida
+- Considere canalizacao de energias em idade adulta
+- Interprete padroes atipicos como adaptacao psicossocial
 
-FORMATO DE RESPOSTA: Estruture a análise em seções claramente demarcadas com:
-- Tabelas para dados (questões, respostas, pontuações)
-- Análises interpretativas fundamentadas
-- Citações do Manual Clínico quando aplicável
-- Conclusões explícitas e fundamentadas
-- Recomendações práticas
-- Limitações ou ressalvas metodológicas
+Se crianca/adolescente (<18):
+- Avalie se padrao eh developmentalmente apropriado
+- Identifique areas de aceleracao potencial
+- Considere necessidade de enriquecimento ambiental
+
+7. RECOMENDACOES CLINICAS
+- Avaliacao complementar necessaria (testes de QI, criatividade, aptidoes especificas)
+- Intervencoes educacionais/clinicas recomendadas
+- Orientacao vocacional/ocupacional baseada no perfil
+- Estrategias de bem-estar baseadas em padrao de sobre-excitabilidade
+
+FORMATO DE RESPOSTA:
+Estruture a analise em secoes claramente demarcadas com:
+- Tabelas para dados (questoes, respostas, pontuacoes)
+- Analises interpretativas fundamentadas
+- Citacoes do Manual Clinico quando aplicavel
+- Conclusoes explicitas e fundamentadas
+- Recomendacoes praticas
+- Limitacoes ou ressalvas metodologicas
 
 IMPORTANTE:
-- Use apenas os dados fornecidos (não especule além do questionário)
-- Cite características específicas com números de questões
+- Use apenas os dados fornecidos (nao especule alem do questionario)
+- Cite caracteristicas especificas com numeros de questoes
 - Respeite a abordagem multidimensional de Dabrowski
-- Considere que padrões heterogêneos são comuns em superdotados reais
-- Diferencie entre ausência de respostas altas e resposta genuína baixa.`;
+- Considere que padroes heterogeneos sao comuns em superdotados reais
+- Diferencie entre ausencia de respostas altas e resposta genuina baixa
+- Nao citar outros pacientes na avaliacao`;
 
   try {
     const response = await invokeLLM({
@@ -162,12 +205,10 @@ IMPORTANTE:
     const content = response.choices[0]?.message.content;
     const analysisText = typeof content === "string" ? content : "";
 
-    // Extrair seções da análise
-    const clinicalAnalysis = extractSection(analysisText, "INTERPRETAÇÃO CLÍNICA", "ANÁLISE DO PERFIL") || analysisText;
-    const diagnosis = extractSection(analysisText, "DIAGNÓSTICO FINAL", "RECOMENDAÇÕES") || "Análise em andamento";
-    const recommendations = extractSection(analysisText, "RECOMENDAÇÕES CLÍNICAS", "") || "Recomendações serão fornecidas após análise completa";
+    const clinicalAnalysis = extractSection(analysisText, "INTERPRETACAO CLINICA", "ANALISE DO PERFIL") || analysisText;
+    const diagnosis = extractSection(analysisText, "DIAGNOSTICO FINAL", "RECOMENDACOES") || "Analise em andamento";
+    const recommendations = extractSection(analysisText, "RECOMENDACOES CLINICAS", "") || "Recomendacoes serao fornecidas apos analise completa";
 
-    // Determinar nível de confiança e tipo de superdotação
     const confidenceLevel = extractConfidenceLevel(analysisText);
     const giftednessType = extractGiftednessType(analysisText);
 
@@ -179,14 +220,11 @@ IMPORTANTE:
       giftednessType,
     };
   } catch (error) {
-    console.error("Erro ao gerar análise clínica:", error);
-    throw new Error("Falha ao gerar análise com IA");
+    console.error("Erro ao gerar analise clinica:", error);
+    throw new Error("Falha ao gerar analise com IA");
   }
 }
 
-/**
- * Extrai uma seção do texto da análise
- */
 function extractSection(text: string, startMarker: string, endMarker: string): string | null {
   const startIndex = text.indexOf(startMarker);
   if (startIndex === -1) return null;
@@ -198,23 +236,17 @@ function extractSection(text: string, startMarker: string, endMarker: string): s
   return result || null;
 }
 
-/**
- * Extrai o nível de confiança da análise
- */
 function extractConfidenceLevel(text: string): "Alta" | "Moderada" | "Baixa" {
-  if (text.includes("Alta confiança") || text.includes("confiança alta")) return "Alta";
+  if (text.includes("Alta confianca") || text.includes("confianca alta")) return "Alta";
   if (text.includes("Moderada") || text.includes("moderada")) return "Moderada";
   return "Baixa";
 }
 
-/**
- * Extrai o tipo de superdotação detectado
- */
 function extractGiftednessType(text: string): string {
   if (text.includes("Multidimensional")) return "Superdotado Multidimensional";
   if (text.includes("Criativo")) return "Superdotado Criativo";
-  if (text.includes("Emocional") && text.includes("Sensível")) return "Superdotado Emocional/Sensível";
+  if (text.includes("Emocional") && text.includes("Sensivel")) return "Superdotado Emocional/Sensivel";
   if (text.includes("Intelectual Puro")) return "Superdotado Intelectual Puro";
   if (text.includes("Motora")) return "Superdotado Motora";
-  return "Padrão de Superdotação Detectado";
+  return "Padrao de Superdotacao Detectado";
 }
