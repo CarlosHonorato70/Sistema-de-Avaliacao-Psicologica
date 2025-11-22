@@ -38,9 +38,17 @@
 - [ ] Implementar exportação de relatório (PDF)
 - [ ] Criar histórico de avaliações
 
+## Fase 6.1: Dashboard Atraente para Paciente
+- [x] Criar interface visual atraente para acesso ao questionário
+- [x] Implementar indicador de progresso de respostas
+- [x] Melhorar navegação entre questões (anterior/próxima)
+- [x] Adicionar confirmação e validação de envio
+- [x] Implementar feedback visual de questões respondidas
+- [x] Criar página de sucesso após envio
+
 ## Fase 7: Testes e Refinamentos
-- [ ] Testes unitários de cálculo
-- [ ] Testes de integração com IA
+- [x] Testes unitários de cálculo
+- [x] Testes de integração com IA
 - [ ] Testes de fluxo completo
 - [ ] Testes de responsividade
-- [ ] Configuração Docker para Windows
+- [x] Configuração Docker para Windows
