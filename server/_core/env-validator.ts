@@ -19,7 +19,7 @@ const ENV_CONFIGS: EnvConfig[] = [
     name: "DATABASE_URL",
     required: true,
     description: "MySQL database connection string",
-    validator: (value) => value.startsWith("mysql://"),
+    validator: (value) => value.startsWith("mysql://") || value.startsWith("mysql2://"),
   },
   {
     name: "SESSION_SECRET",

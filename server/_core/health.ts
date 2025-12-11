@@ -45,6 +45,10 @@ async function checkDatabase(): Promise<{
   try {
     const db = await getDb();
     
+    // Note: getDb() can return null if DATABASE_URL is not configured or if
+    // the database connection failed to initialize. This is by design to allow
+    // local tooling to run without a database. In production, this should always
+    // be configured, and the health check will properly report the unhealthy state.
     if (!db) {
       return {
         status: "down",

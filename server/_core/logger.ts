@@ -156,17 +156,48 @@ class Logger {
 
   /**
    * Create a child logger with additional context
+   * Uses composition to merge contexts without modifying the original logger
    */
-  child(defaultContext: LogContext): Logger {
-    const childLogger = new Logger();
-    const originalLog = childLogger.log.bind(childLogger);
-    
-    childLogger.log = (level: LogLevel, message: string, context?: LogContext, error?: Error) => {
-      const mergedContext = { ...defaultContext, ...context };
-      originalLog(level, message, mergedContext, error);
-    };
-    
-    return childLogger;
+  child(defaultContext: LogContext): ChildLogger {
+    return new ChildLogger(this, defaultContext);
+  }
+}
+
+/**
+ * Child logger that wraps a parent logger with additional default context
+ */
+class ChildLogger {
+  constructor(
+    private parent: Logger,
+    private defaultContext: LogContext
+  ) {}
+
+  private mergeContext(context?: LogContext): LogContext {
+    return { ...this.defaultContext, ...context };
+  }
+
+  error(message: string, error?: Error, context?: LogContext): void {
+    this.parent.error(message, error, this.mergeContext(context));
+  }
+
+  warn(message: string, context?: LogContext): void {
+    this.parent.warn(message, this.mergeContext(context));
+  }
+
+  info(message: string, context?: LogContext): void {
+    this.parent.info(message, this.mergeContext(context));
+  }
+
+  debug(message: string, context?: LogContext): void {
+    this.parent.debug(message, this.mergeContext(context));
+  }
+
+  trace(message: string, context?: LogContext): void {
+    this.parent.trace(message, this.mergeContext(context));
+  }
+
+  child(additionalContext: LogContext): ChildLogger {
+    return new ChildLogger(this.parent, this.mergeContext(additionalContext));
   }
 }
 
@@ -188,8 +219,10 @@ export const log = {
 };
 
 // Express middleware for request logging
+import type { Request, Response, NextFunction } from "express";
+
 export function requestLogger() {
-  return (req: any, res: any, next: any) => {
+  return (req: Request, res: Response, next: NextFunction) => {
     const startTime = Date.now();
 
     // Log request
@@ -197,7 +230,7 @@ export function requestLogger() {
       method: req.method,
       path: req.path,
       query: req.query,
-      ip: req.ip || req.connection.remoteAddress,
+      ip: req.ip || req.socket.remoteAddress,
       userAgent: req.get("user-agent"),
     });
 
