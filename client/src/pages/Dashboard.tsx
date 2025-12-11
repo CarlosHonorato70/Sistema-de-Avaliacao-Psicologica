@@ -4,14 +4,16 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { trpc } from "@/lib/trpc";
-import { Plus, Copy, CheckCircle2, Clock, AlertCircle } from "lucide-react";
+import { Plus, Copy, CheckCircle2, Clock, AlertCircle, Mail, MessageCircle, Link } from "lucide-react";
 import { toast } from "sonner";
 
 export default function Dashboard() {
   const [isAddingPatient, setIsAddingPatient] = useState(false);
+  const [sendLinkDialogOpen, setSendLinkDialogOpen] = useState(false);
+  const [selectedPatient, setSelectedPatient] = useState<any>(null);
   const [formData, setFormData] = useState({
     name: "",
     age: "",
@@ -44,15 +46,71 @@ export default function Dashboard() {
     }
   };
 
-  const handleGenerateLink = async (patientId: number) => {
+  const openSendLinkDialog = (patient: any) => {
+    setSelectedPatient(patient);
+    setSendLinkDialogOpen(true);
+  };
+
+  const handleGenerateAndCopyLink = async (patientId: number) => {
     try {
-      const result = await generateLinkMutation.mutateAsync({ patientId });
+      const result = await generateLinkMutation.mutateAsync({ patientId, sendEmail: false });
       const baseUrl = window.location.origin;
       const assessmentUrl = `${baseUrl}/assessment/${result.token}`;
       
       // Copy to clipboard
-      navigator.clipboard.writeText(assessmentUrl);
+      await navigator.clipboard.writeText(assessmentUrl);
       toast.success("Link copiado para a área de transferência!");
+      setSendLinkDialogOpen(false);
+    } catch (error) {
+      toast.error("Erro ao gerar link: " + (error as any).message);
+    }
+  };
+
+  const handleSendEmail = async (patientId: number) => {
+    try {
+      const result = await generateLinkMutation.mutateAsync({ 
+        patientId, 
+        sendEmail: true 
+      });
+      
+      if (result.emailSent) {
+        toast.success("Link enviado por email com sucesso!");
+      } else {
+        toast.warning("Link gerado, mas o email não pôde ser enviado. Copie o link manualmente.");
+        const baseUrl = window.location.origin;
+        const assessmentUrl = `${baseUrl}/assessment/${result.token}`;
+        await navigator.clipboard.writeText(assessmentUrl);
+      }
+      setSendLinkDialogOpen(false);
+    } catch (error) {
+      toast.error("Erro ao enviar email: " + (error as any).message);
+    }
+  };
+
+  const handleSendWhatsApp = async (patientId: number, phone: string) => {
+    try {
+      const result = await generateLinkMutation.mutateAsync({ patientId, sendEmail: false });
+      const baseUrl = window.location.origin;
+      const assessmentUrl = `${baseUrl}/assessment/${result.token}`;
+      
+      // Format WhatsApp message
+      const message = `Olá! 👋\n\nVocê foi convidado(a) a responder um questionário de avaliação psicológica.\n\n🔗 Acesse aqui:\n${assessmentUrl}\n\n📋 Informações:\n• 68 questões\n• Tempo: 15-20 minutos\n• Válido por 30 dias\n\nQualquer dúvida, estou à disposição! 😊`;
+      
+      // Clean phone number (remove non-numeric characters)
+      const cleanPhone = phone.replace(/\D/g, '');
+      
+      // Handle country code - if phone already starts with country code, don't add it
+      // Otherwise, default to Brazil (55)
+      const phoneWithCountry = cleanPhone.startsWith('55') || cleanPhone.length > 11
+        ? cleanPhone
+        : `55${cleanPhone}`;
+      
+      // Open WhatsApp with pre-filled message
+      const whatsappUrl = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+      
+      toast.success("Link gerado! Abrindo WhatsApp...");
+      setSendLinkDialogOpen(false);
     } catch (error) {
       toast.error("Erro ao gerar link: " + (error as any).message);
     }
@@ -182,11 +240,11 @@ export default function Dashboard() {
                         <Button
                           size="sm"
                           variant="outline"
-                          onClick={() => handleGenerateLink(patient.id)}
+                          onClick={() => openSendLinkDialog(patient)}
                           disabled={generateLinkMutation.isPending}
                         >
-                          <Copy className="w-4 h-4 mr-2" />
-                          Gerar Link
+                          <Link className="w-4 h-4 mr-2" />
+                          Enviar Link
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -205,9 +263,8 @@ export default function Dashboard() {
               <h3 className="font-semibold text-blue-900 mb-2">Como usar:</h3>
               <ol className="text-sm text-blue-800 space-y-1 list-decimal list-inside">
                 <li>Adicione um novo paciente usando o botão "Novo Paciente"</li>
-                <li>Clique em "Gerar Link" para criar um link único de acesso</li>
-                <li>O link será copiado para sua área de transferência</li>
-                <li>Envie o link para o paciente por email ou WhatsApp</li>
+                <li>Clique em "Enviar Link" para criar e enviar o link de avaliação</li>
+                <li>Escolha enviar por Email, WhatsApp ou apenas copiar o link</li>
                 <li>O paciente responde o questionário através do link</li>
                 <li>As respostas são automaticamente armazenadas e analisadas</li>
               </ol>
@@ -215,6 +272,68 @@ export default function Dashboard() {
           </div>
         </Card>
       </div>
+
+      {/* Send Link Dialog */}
+      <Dialog open={sendLinkDialogOpen} onOpenChange={setSendLinkDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Enviar Link de Avaliação</DialogTitle>
+            <DialogDescription>
+              Escolha como deseja enviar o link para {selectedPatient?.name}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            {/* Email Option */}
+            <Button
+              className="w-full justify-start gap-3 h-auto py-4"
+              variant="outline"
+              onClick={() => handleSendEmail(selectedPatient?.id)}
+              disabled={!selectedPatient?.email || generateLinkMutation.isPending}
+            >
+              <Mail className="w-5 h-5 text-blue-600" />
+              <div className="flex-1 text-left">
+                <div className="font-semibold">Enviar por Email</div>
+                <div className="text-xs text-gray-500">
+                  {selectedPatient?.email || "Email não cadastrado"}
+                </div>
+              </div>
+            </Button>
+
+            {/* WhatsApp Option */}
+            <Button
+              className="w-full justify-start gap-3 h-auto py-4"
+              variant="outline"
+              onClick={() => handleSendWhatsApp(selectedPatient?.id, selectedPatient?.phone)}
+              disabled={!selectedPatient?.phone || generateLinkMutation.isPending}
+            >
+              <MessageCircle className="w-5 h-5 text-green-600" />
+              <div className="flex-1 text-left">
+                <div className="font-semibold">Enviar por WhatsApp</div>
+                <div className="text-xs text-gray-500">
+                  {selectedPatient?.phone || "Telefone não cadastrado"}
+                </div>
+              </div>
+            </Button>
+
+            {/* Copy Link Option */}
+            <Button
+              className="w-full justify-start gap-3 h-auto py-4"
+              variant="outline"
+              onClick={() => handleGenerateAndCopyLink(selectedPatient?.id)}
+              disabled={generateLinkMutation.isPending}
+            >
+              <Copy className="w-5 h-5 text-gray-600" />
+              <div className="flex-1 text-left">
+                <div className="font-semibold">Copiar Link</div>
+                <div className="text-xs text-gray-500">
+                  Gerar e copiar para área de transferência
+                </div>
+              </div>
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </DashboardLayout>
   );
 }

@@ -15,6 +15,7 @@ import {
   generateToken,
   getAssessmentResponseByLinkId,
   createAssessment,
+  updateLinkAccessAudit,
 } from "./db";
 
 // Input validation schemas
@@ -28,6 +29,8 @@ const createPatientInput = z.object({
 
 const generateLinkInput = z.object({
   patientId: z.number(),
+  expiryDays: z.number().min(1).max(365).optional().default(30),
+  sendEmail: z.boolean().optional().default(false),
 });
 
 const getByTokenInput = z.object({
@@ -85,20 +88,76 @@ export const appRouter = router({
         throw new Error("Patient not found or access denied");
       }
       
-      const token = generateToken();
-      const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+      // Validate patient has email if sendEmail is requested
+      if (input.sendEmail && !patient.email) {
+        throw new Error("Patient does not have an email address registered");
+      }
       
-      await createAssessmentLink({
+      const token = await generateToken();
+      const expiryDays = input.expiryDays || 30;
+      const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000);
+      
+      const linkData = {
         patientId: input.patientId,
         token,
         expiresAt,
-      });
+        expiryDays,
+        emailSentAt: input.sendEmail ? new Date() : undefined,
+      };
       
-      return { token, expiresAt };
+      await createAssessmentLink(linkData);
+      
+      // Send email if requested
+      let emailSent = false;
+      if (input.sendEmail && patient.email) {
+        try {
+          const { sendAssessmentLinkEmail } = await import("./_core/email");
+          const baseUrl = `${ctx.req.protocol}://${ctx.req.headers.host}`;
+          const assessmentUrl = `${baseUrl}/assessment/${token}`;
+          
+          emailSent = await sendAssessmentLinkEmail({
+            patientName: patient.name,
+            patientEmail: patient.email,
+            assessmentUrl,
+            expiresAt,
+            psychologistName: ctx.user.name || undefined,
+          });
+        } catch (error) {
+          console.error("Failed to send assessment link email:", error);
+          // Don't throw error - link is still generated
+        }
+      }
+      
+      return { token, expiresAt, expiryDays, emailSent };
     }),
     
-    getByToken: publicProcedure.input(getByTokenInput).query(async ({ input }) => {
-      return getAssessmentLinkByToken(input.token);
+    getByToken: publicProcedure.input(getByTokenInput).query(async ({ input, ctx }) => {
+      const link = await getAssessmentLinkByToken(input.token);
+      
+      if (link) {
+        // Track access audit information
+        // x-forwarded-for can contain multiple IPs (comma-separated), take the first one
+        const forwardedFor = ctx.req.headers['x-forwarded-for'] as string;
+        const ipAddress = forwardedFor 
+                         ? forwardedFor.split(',')[0]?.trim()
+                         : ctx.req.headers['x-real-ip'] as string ||
+                           (ctx.req.socket as any)?.remoteAddress;
+        
+        // Update access audit asynchronously
+        updateLinkAccessAudit(link.id, ipAddress).catch(err => {
+          console.error("Failed to update link access audit:", err);
+        });
+        
+        // Also fetch patient information to return along with link
+        const patient = await getPatientById(link.patientId);
+        
+        return {
+          ...link,
+          patient,
+        };
+      }
+      
+      return link;
     }),
     
     submitResponses: publicProcedure.input(submitResponsesInput).mutation(async ({ input }) => {

@@ -18,33 +18,23 @@ interface AssessmentLink {
 
 export default function PatientDashboard() {
   const [, setLocation] = useLocation();
-  const [assessmentLink, setAssessmentLink] = useState<AssessmentLink | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [token, setToken] = useState<string | null>(null);
 
   // Extrair token da URL
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const token = params.get("token");
-
-    if (!token) {
-      setError("Link de acesso inválido ou expirado");
-      setLoading(false);
-      return;
-    }
-
-    // Aqui você buscaria os dados do link do servidor
-    // Por enquanto, vamos simular
-    setAssessmentLink({
-      id: "1",
-      token,
-      patientName: "João Silva",
-      patientEmail: "joao@example.com",
-      createdAt: new Date(),
-      isCompleted: false,
-    });
-    setLoading(false);
+    const urlToken = params.get("token");
+    setToken(urlToken);
   }, []);
+
+  const linkQuery = trpc.assessments.getByToken.useQuery(
+    { token: token || "" },
+    { enabled: !!token }
+  );
+
+  const loading = linkQuery.isLoading;
+  const error = linkQuery.error ? "Link de acesso inválido ou expirado" : null;
+  const assessmentLink = linkQuery.data;
 
   if (loading) {
     return (
@@ -79,9 +69,41 @@ export default function PatientDashboard() {
     );
   }
 
-  if (!assessmentLink) {
+  if (!assessmentLink || !assessmentLink.patient) {
     return null;
   }
+
+  // Check if link is completed
+  if (assessmentLink.completedAt) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md p-8 text-center">
+          <CheckCircle2 className="w-12 h-12 text-green-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Questionário Já Respondido</h1>
+          <p className="text-gray-600">
+            Este questionário já foi respondido e não pode ser preenchido novamente.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
+  // Check if link is expired
+  if (assessmentLink.expiresAt && new Date(assessmentLink.expiresAt) < new Date()) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
+        <Card className="w-full max-w-md p-8 text-center">
+          <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+          <h1 className="text-2xl font-bold text-gray-800 mb-2">Link Expirado</h1>
+          <p className="text-gray-600">
+            Este link de avaliação já expirou. Entre em contato com o psicólogo para obter um novo link.
+          </p>
+        </Card>
+      </div>
+    );
+  }
+
+  const patientName = assessmentLink.patient.name;
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-indigo-50">
@@ -103,7 +125,7 @@ export default function PatientDashboard() {
         {/* Welcome Card */}
         <Card className="mb-8 border-0 shadow-lg bg-gradient-to-r from-blue-500 to-indigo-600 text-white">
           <CardHeader>
-            <CardTitle className="text-2xl">Bem-vindo, {assessmentLink.patientName}!</CardTitle>
+            <CardTitle className="text-2xl">Bem-vindo, {patientName}!</CardTitle>
             <CardDescription className="text-blue-100">
               Obrigado por participar desta avaliação psicológica
             </CardDescription>
@@ -239,7 +261,7 @@ export default function PatientDashboard() {
         {/* CTA Button */}
         <div className="flex gap-4 justify-center">
           <Button
-            onClick={() => setLocation(`/respond-assessment?token=${assessmentLink.token}`)}
+            onClick={() => setLocation(`/assessment/${token}`)}
             size="lg"
             className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white px-8 py-6 text-lg font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all"
           >
