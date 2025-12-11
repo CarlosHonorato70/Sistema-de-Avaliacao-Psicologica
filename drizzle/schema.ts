@@ -53,6 +53,12 @@ export const assessmentLinks = mysqlTable("assessmentLinks", {
   expiresAt: timestamp("expiresAt"),
   completedAt: timestamp("completedAt"),
   createdAt: timestamp("createdAt").defaultNow().notNull(),
+  // Audit fields
+  lastAccessedAt: timestamp("lastAccessedAt"),
+  accessCount: int("accessCount").default(0).notNull(),
+  ipAddress: varchar("ipAddress", { length: 45 }), // Supports IPv6
+  expiryDays: int("expiryDays").default(30).notNull(), // Customizable expiry period
+  emailSentAt: timestamp("emailSentAt"), // Track when email was sent
 });
 
 export type AssessmentLink = typeof assessmentLinks.$inferSelect;

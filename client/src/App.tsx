@@ -7,6 +7,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import Home from "./pages/Home";
 import Dashboard from "./pages/Dashboard";
 import PatientDashboard from "./pages/PatientDashboard";
+import RespondAssessment from "./pages/RespondAssessment";
 import RespondAssessmentImproved from "./pages/RespondAssessmentImproved";
 import AssessmentResults from "./pages/AssessmentResults";
 import AssessmentSuccess from "./pages/AssessmentSuccess";
@@ -17,6 +18,7 @@ function Router() {
       <Route path={"/"} component={Home} />
       <Route path={"/dashboard"} component={Dashboard} />
       <Route path={"/patient-dashboard"} component={PatientDashboard} />
+      <Route path={"/assessment/:token"} component={RespondAssessment} />
       <Route path={"/respond-assessment"} component={RespondAssessmentImproved} />
       <Route path={"/assessment-results"} component={AssessmentResults} />
       <Route path={"/assessment-success"} component={AssessmentSuccess} />
