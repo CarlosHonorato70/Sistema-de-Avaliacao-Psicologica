@@ -1,5 +1,5 @@
 # Build stage
-FROM node:22-alpine AS builder
+FROM node:25-alpine AS builder
 
 # Install pnpm
 RUN npm install -g pnpm@10.4.1
@@ -19,7 +19,7 @@ COPY . .
 RUN pnpm run build
 
 # Runtime stage
-FROM node:22-alpine
+FROM node:25-alpine
 
 # Install pnpm with specific version
 RUN npm install -g pnpm@10.4.1
