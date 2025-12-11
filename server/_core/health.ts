@@ -6,7 +6,7 @@
  */
 
 import { Request, Response } from "express";
-import { db } from "../db";
+import { getDb } from "../db";
 import { sql } from "drizzle-orm";
 
 interface HealthStatus {
@@ -43,6 +43,15 @@ async function checkDatabase(): Promise<{
   const startTime = Date.now();
   
   try {
+    const db = await getDb();
+    
+    if (!db) {
+      return {
+        status: "down",
+        error: "Database connection not initialized",
+      };
+    }
+    
     // Simple query to check database connection
     await db.execute(sql`SELECT 1`);
     
