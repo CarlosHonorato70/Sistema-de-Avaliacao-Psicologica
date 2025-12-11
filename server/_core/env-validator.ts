@@ -14,12 +14,12 @@ interface EnvConfig {
 }
 
 const ENV_CONFIGS: EnvConfig[] = [
-  // Required variables
+  // Optional database configuration
   {
-    name: "DATABASE_URL",
-    required: true,
-    description: "MySQL database connection string",
-    validator: (value) => value.startsWith("mysql://") || value.startsWith("mysql2://"),
+    name: "DATABASE_PATH",
+    required: false,
+    description: "SQLite database file path (defaults to ./data/database.sqlite)",
+    validator: (value) => value.length > 0,
   },
   {
     name: "SESSION_SECRET",

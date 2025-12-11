@@ -57,7 +57,7 @@ async function checkDatabase(): Promise<{
     }
     
     // Simple query to check database connection
-    await db.execute(sql`SELECT 1`);
+    await db.run(sql`SELECT 1`);
     
     const responseTime = Date.now() - startTime;
     

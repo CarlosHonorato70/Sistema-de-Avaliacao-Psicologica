@@ -1,25 +1,26 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { sql } from "drizzle-orm";
 
 /**
  * Core user table backing auth flow.
  * Extend this file with additional tables as your product grows.
  * Columns use camelCase to match both database fields and generated types.
  */
-export const users = mysqlTable("users", {
+export const users = sqliteTable("users", {
   /**
    * Surrogate primary key. Auto-incremented numeric value managed by the database.
    * Use this for relations between tables.
    */
-  id: int("id").autoincrement().primaryKey(),
+  id: integer("id").primaryKey({ autoIncrement: true }),
   /** OAuth identifier (openId) returned from the OAuth callback. Unique per user. */
-  openId: varchar("openId", { length: 64 }).notNull().unique(),
+  openId: text("openId").notNull().unique(),
   name: text("name"),
-  email: varchar("email", { length: 320 }),
-  loginMethod: varchar("loginMethod", { length: 64 }),
-  role: mysqlEnum("role", ["user", "admin"]).default("user").notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
-  lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),
+  email: text("email"),
+  loginMethod: text("loginMethod"),
+  role: text("role", { enum: ["user", "admin"] }).default("user").notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
+  lastSignedIn: integer("lastSignedIn", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
 });
 
 export type User = typeof users.$inferSelect;
@@ -28,16 +29,16 @@ export type InsertUser = typeof users.$inferInsert;
 /**
  * Tabela de pacientes - armazena informações básicas dos pacientes
  */
-export const patients = mysqlTable("patients", {
-  id: int("id").autoincrement().primaryKey(),
-  psychologistId: int("psychologistId").notNull().references(() => users.id),
-  name: varchar("name", { length: 255 }).notNull(),
-  age: int("age"),
-  email: varchar("email", { length: 320 }),
-  phone: varchar("phone", { length: 20 }),
+export const patients = sqliteTable("patients", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  psychologistId: integer("psychologistId").notNull().references(() => users.id),
+  name: text("name").notNull(),
+  age: integer("age"),
+  email: text("email"),
+  phone: text("phone"),
   notes: text("notes"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
 });
 
 export type Patient = typeof patients.$inferSelect;
@@ -46,19 +47,19 @@ export type InsertPatient = typeof patients.$inferInsert;
 /**
  * Tabela de links únicos para questionários
  */
-export const assessmentLinks = mysqlTable("assessmentLinks", {
-  id: int("id").autoincrement().primaryKey(),
-  patientId: int("patientId").notNull().references(() => patients.id),
-  token: varchar("token", { length: 64 }).notNull().unique(),
-  expiresAt: timestamp("expiresAt"),
-  completedAt: timestamp("completedAt"),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+export const assessmentLinks = sqliteTable("assessmentLinks", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  patientId: integer("patientId").notNull().references(() => patients.id),
+  token: text("token").notNull().unique(),
+  expiresAt: integer("expiresAt", { mode: "timestamp" }),
+  completedAt: integer("completedAt", { mode: "timestamp" }),
+  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
   // Audit fields
-  lastAccessedAt: timestamp("lastAccessedAt"),
-  accessCount: int("accessCount").default(0).notNull(),
-  ipAddress: varchar("ipAddress", { length: 45 }), // Supports IPv6
-  expiryDays: int("expiryDays").default(30).notNull(), // Customizable expiry period
-  emailSentAt: timestamp("emailSentAt"), // Track when email was sent
+  lastAccessedAt: integer("lastAccessedAt", { mode: "timestamp" }),
+  accessCount: integer("accessCount").default(0).notNull(),
+  ipAddress: text("ipAddress"), // Supports IPv6
+  expiryDays: integer("expiryDays").default(30).notNull(), // Customizable expiry period
+  emailSentAt: integer("emailSentAt", { mode: "timestamp" }), // Track when email was sent
 });
 
 export type AssessmentLink = typeof assessmentLinks.$inferSelect;
@@ -68,14 +69,14 @@ export type InsertAssessmentLink = typeof assessmentLinks.$inferInsert;
  * Tabela de respostas do questionário
  * Armazena as 68 respostas do paciente (0, 1, 3 ou 4)
  */
-export const assessmentResponses = mysqlTable("assessmentResponses", {
-  id: int("id").autoincrement().primaryKey(),
-  linkId: int("linkId").notNull().references(() => assessmentLinks.id),
-  patientId: int("patientId").notNull().references(() => patients.id),
+export const assessmentResponses = sqliteTable("assessmentResponses", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  linkId: integer("linkId").notNull().references(() => assessmentLinks.id),
+  patientId: integer("patientId").notNull().references(() => patients.id),
   // Armazenar todas as 68 respostas como JSON
   responses: text("responses").notNull(), // JSON string com array de respostas
-  completedAt: timestamp("completedAt").defaultNow().notNull(),
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  completedAt: integer("completedAt", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
+  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
 });
 
 export type AssessmentResponse = typeof assessmentResponses.$inferSelect;
@@ -84,24 +85,24 @@ export type InsertAssessmentResponse = typeof assessmentResponses.$inferInsert;
 /**
  * Tabela de avaliações - armazena o resultado da análise com IA
  */
-export const assessments = mysqlTable("assessments", {
-  id: int("id").autoincrement().primaryKey(),
-  responseId: int("responseId").notNull().references(() => assessmentResponses.id),
-  patientId: int("patientId").notNull().references(() => patients.id),
+export const assessments = sqliteTable("assessments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  responseId: integer("responseId").notNull().references(() => assessmentResponses.id),
+  patientId: integer("patientId").notNull().references(() => patients.id),
   // Scores por domínio (0-100)
-  intellectualScore: int("intellectualScore"),
-  emotionalScore: int("emotionalScore"),
-  imaginativeScore: int("imaginativeScore"),
-  sensorialScore: int("sensorialScore"),
-  motorScore: int("motorScore"),
+  intellectualScore: integer("intellectualScore"),
+  emotionalScore: integer("emotionalScore"),
+  imaginativeScore: integer("imaginativeScore"),
+  sensorialScore: integer("sensorialScore"),
+  motorScore: integer("motorScore"),
   // Resultado da análise com IA (texto completo)
   clinicalAnalysis: text("clinicalAnalysis"),
   diagnosis: text("diagnosis"),
   recommendations: text("recommendations"),
-  confidenceLevel: varchar("confidenceLevel", { length: 20 }), // Alta, Moderada, Baixa
-  giftednessType: varchar("giftednessType", { length: 100 }), // Tipo de superdotação detectado
-  createdAt: timestamp("createdAt").defaultNow().notNull(),
-  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+  confidenceLevel: text("confidenceLevel"), // Alta, Moderada, Baixa
+  giftednessType: text("giftednessType"), // Tipo de superdotação detectado
+  createdAt: integer("createdAt", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
+  updatedAt: integer("updatedAt", { mode: "timestamp" }).default(sql`(unixepoch())`).notNull(),
 });
 
 export type Assessment = typeof assessments.$inferSelect;
