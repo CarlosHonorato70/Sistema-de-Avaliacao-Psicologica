@@ -1,0 +1,92 @@
+version: 2
+updates:
+  # Enable version updates for npm
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 10
+    reviewers:
+      - "CarlosHonorato70"
+    assignees:
+      - "CarlosHonorato70"
+    commit-message:
+      prefix: "chore(deps)"
+      include: "scope"
+    labels:
+      - "dependencies"
+      - "automated"
+    # Group dependency updates by type
+    groups:
+      production-dependencies:
+        patterns:
+          - "*"
+        exclude-patterns:
+          - "@types/*"
+          - "typescript"
+          - "prettier"
+          - "eslint*"
+          - "vitest"
+          - "@vitejs/*"
+          - "vite"
+        update-types:
+          - "minor"
+          - "patch"
+      development-dependencies:
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "prettier"
+          - "eslint*"
+          - "vitest"
+          - "@vitejs/*"
+          - "vite"
+        update-types:
+          - "minor"
+          - "patch"
+    # Security updates
+    ignore:
+      # Ignore major version updates for critical dependencies
+      # Review these manually
+      - dependency-name: "react"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "react-dom"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "express"
+        update-types: ["version-update:semver-major"]
+      - dependency-name: "mysql2"
+        update-types: ["version-update:semver-major"]
+    allow:
+      # Allow all updates
+      - dependency-type: "all"
+
+  # Enable version updates for GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "ci"
+      include: "scope"
+    labels:
+      - "github-actions"
+      - "automated"
+
+  # Enable security updates for Docker
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "09:00"
+    open-pull-requests-limit: 5
+    commit-message:
+      prefix: "chore(docker)"
+    labels:
+      - "docker"
+      - "automated"

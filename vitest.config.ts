@@ -15,5 +15,22 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["server/**/*.test.ts", "server/**/*.spec.ts"],
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "json", "html", "lcov"],
+      include: ["server/**/*.ts"],
+      exclude: [
+        "server/**/*.test.ts",
+        "server/**/*.spec.ts",
+        "server/_core/types/**",
+        "node_modules/**",
+      ],
+      // Coverage thresholds - can be overridden via COVERAGE_THRESHOLD env var
+      statements: parseInt(process.env.COVERAGE_THRESHOLD || "80"),
+      branches: parseInt(process.env.COVERAGE_THRESHOLD || "80"),
+      functions: parseInt(process.env.COVERAGE_THRESHOLD || "80"),
+      lines: parseInt(process.env.COVERAGE_THRESHOLD || "80"),
+      all: true,
+    },
   },
 });
