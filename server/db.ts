@@ -1,8 +1,11 @@
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/mysql2";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import Database from "better-sqlite3";
 import { InsertUser, users, patients, assessmentLinks, assessmentResponses, assessments, InsertPatient, InsertAssessmentLink, InsertAssessmentResponse, InsertAssessment, Patient, AssessmentLink, AssessmentResponse, Assessment } from "../drizzle/schema";
 import { ENV } from './_core/env';
 import { nanoid } from 'nanoid';
+import * as fs from 'fs';
+import * as path from 'path';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -11,9 +14,21 @@ export type { Patient, AssessmentLink, AssessmentResponse, Assessment } from "..
 
 // Lazily create the drizzle instance so local tooling can run without a DB.
 export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
+  if (!_db) {
     try {
-      _db = drizzle(process.env.DATABASE_URL);
+      const databasePath = process.env.DATABASE_PATH || "./data/database.sqlite";
+      
+      // Ensure the directory exists
+      const dir = path.dirname(databasePath);
+      if (!fs.existsSync(dir)) {
+        fs.mkdirSync(dir, { recursive: true });
+      }
+      
+      // Create the SQLite database connection
+      const sqlite = new Database(databasePath);
+      sqlite.pragma('journal_mode = WAL'); // Enable Write-Ahead Logging for better concurrency
+      
+      _db = drizzle(sqlite);
     } catch (error) {
       console.warn("[Database] Failed to connect:", error);
       _db = null;
@@ -66,47 +81,74 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 
   try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
-    const updateSet: Record<string, unknown> = {};
+    // Check if user exists
+    const existingUser = await getUserByOpenId(user.openId);
+    
+    if (existingUser) {
+      // Update existing user
+      const updateSet: Record<string, unknown> = {};
 
-    const textFields = ["name", "email", "loginMethod"] as const;
-    type TextField = (typeof textFields)[number];
+      const textFields = ["name", "email", "loginMethod"] as const;
+      type TextField = (typeof textFields)[number];
 
-    const assignNullable = (field: TextField) => {
-      const value = user[field];
-      if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
-    };
+      const assignNullable = (field: TextField) => {
+        const value = user[field];
+        if (value === undefined) return;
+        const normalized = value ?? null;
+        updateSet[field] = normalized;
+      };
 
-    textFields.forEach(assignNullable);
+      textFields.forEach(assignNullable);
 
-    if (user.lastSignedIn !== undefined) {
-      values.lastSignedIn = user.lastSignedIn;
-      updateSet.lastSignedIn = user.lastSignedIn;
+      if (user.lastSignedIn !== undefined) {
+        updateSet.lastSignedIn = user.lastSignedIn;
+      }
+      if (user.role !== undefined) {
+        updateSet.role = user.role;
+      } else if (user.openId === ENV.ownerOpenId) {
+        updateSet.role = 'admin';
+      }
+
+      if (Object.keys(updateSet).length === 0) {
+        updateSet.lastSignedIn = new Date();
+      }
+      
+      updateSet.updatedAt = new Date();
+
+      await db.update(users).set(updateSet).where(eq(users.openId, user.openId));
+    } else {
+      // Insert new user
+      const values: InsertUser = {
+        openId: user.openId,
+      };
+
+      const textFields = ["name", "email", "loginMethod"] as const;
+      type TextField = (typeof textFields)[number];
+
+      const assignNullable = (field: TextField) => {
+        const value = user[field];
+        if (value === undefined) return;
+        const normalized = value ?? null;
+        values[field] = normalized;
+      };
+
+      textFields.forEach(assignNullable);
+
+      if (user.lastSignedIn !== undefined) {
+        values.lastSignedIn = user.lastSignedIn;
+      }
+      if (user.role !== undefined) {
+        values.role = user.role;
+      } else if (user.openId === ENV.ownerOpenId) {
+        values.role = 'admin';
+      }
+
+      if (!values.lastSignedIn) {
+        values.lastSignedIn = new Date();
+      }
+
+      await db.insert(users).values(values);
     }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
-    }
-
-    if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
-    }
-
-    if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
-    }
-
-    await db.insert(users).values(values).onDuplicateKeyUpdate({
-      set: updateSet,
-    });
   } catch (error) {
     console.error("[Database] Failed to upsert user:", error);
     throw error;

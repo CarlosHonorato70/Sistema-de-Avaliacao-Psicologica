@@ -79,7 +79,7 @@ O Sistema de Avaliação Psicológica é uma plataforma web moderna desenvolvida
 - **TypeScript** - Tipagem estática
 - **Express** - Framework web
 - **tRPC** - API type-safe end-to-end
-- **MySQL** - Banco de dados relacional
+- **SQLite** - Banco de dados local (better-sqlite3)
 - **Drizzle ORM** - ORM TypeScript-first
 - **Jose** - JWT para autenticação
 - **Nanoid** - Geração de tokens seguros
@@ -108,8 +108,9 @@ O Sistema de Avaliação Psicológica é uma plataforma web moderna desenvolvida
 
 - **Node.js**: >= 18.0.0
 - **pnpm**: >= 10.4.1 (package manager)
-- **MySQL**: >= 8.0
 - **Git**: >= 2.0
+
+**Nota**: SQLite é usado como banco de dados e já vem incluído nas dependências. Não é necessário instalar nenhum servidor de banco de dados separadamente.
 
 ## 🚀 Instalação
 
@@ -125,18 +126,13 @@ O Sistema de Avaliação Psicológica é uma plataforma web moderna desenvolvida
    npm install -g pnpm@10.4.1
    ```
 
-3. **Instalar MySQL**:
-   - Baixe o instalador em [mysql.com](https://dev.mysql.com/downloads/installer/)
-   - Execute e configure (lembre-se da senha root)
-   - Verifique: `mysql --version`
-
-4. **Clonar o repositório**:
+3. **Clonar o repositório**:
    ```powershell
    git clone https://github.com/CarlosHonorato70/Sistema-de-Avaliacao-Psicologica.git
    cd Sistema-de-Avaliacao-Psicologica
    ```
 
-5. **Instalar dependências**:
+4. **Instalar dependências**:
    ```powershell
    pnpm install
    ```
@@ -148,11 +144,9 @@ O Sistema de Avaliação Psicológica é uma plataforma web moderna desenvolvida
    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
    ```
 
-2. **Instalar Node.js e MySQL**:
+2. **Instalar Node.js**:
    ```bash
    brew install node@18
-   brew install mysql
-   brew services start mysql
    ```
 
 3. **Instalar pnpm**:
@@ -180,15 +174,7 @@ O Sistema de Avaliação Psicológica é uma plataforma web moderna desenvolvida
    npm install -g pnpm@10.4.1
    ```
 
-3. **Instalar MySQL**:
-   ```bash
-   sudo apt-get update
-   sudo apt-get install mysql-server
-   sudo systemctl start mysql
-   sudo mysql_secure_installation
-   ```
-
-4. **Clonar e configurar**:
+3. **Clonar e configurar**:
    ```bash
    git clone https://github.com/CarlosHonorato70/Sistema-de-Avaliacao-Psicologica.git
    cd Sistema-de-Avaliacao-Psicologica
@@ -197,18 +183,7 @@ O Sistema de Avaliação Psicológica é uma plataforma web moderna desenvolvida
 
 ## ⚙️ Configuração
 
-### 1. Configurar Banco de Dados
-
-Crie o banco de dados MySQL:
-
-```sql
-CREATE DATABASE avaliacao_psicologica;
-CREATE USER 'avaliacao_user'@'localhost' IDENTIFIED BY 'sua_senha_segura';
-GRANT ALL PRIVILEGES ON avaliacao_psicologica.* TO 'avaliacao_user'@'localhost';
-FLUSH PRIVILEGES;
-```
-
-### 2. Configurar Variáveis de Ambiente
+### 1. Configurar Variáveis de Ambiente
 
 Copie o arquivo de exemplo e edite com suas configurações:
 
@@ -225,8 +200,8 @@ NODE_ENV=development
 # Servidor
 PORT=3000
 
-# Banco de Dados
-DATABASE_URL=mysql://avaliacao_user:sua_senha_segura@localhost:3306/avaliacao_psicologica
+# Banco de Dados (SQLite - armazenamento local)
+DATABASE_PATH=./data/database.sqlite
 
 # Segurança (gere uma string aleatória segura)
 SESSION_SECRET=gere_uma_string_aleatoria_de_pelo_menos_32_caracteres_aqui
@@ -268,15 +243,17 @@ OPENAI_API_KEY=sua_openai_api_key
 CDN_URL=https://cdn.seudominio.com
 ```
 
-### 3. Executar Migrations
+### 2. Executar Migrations
 
-Crie as tabelas no banco de dados:
+Crie as tabelas no banco de dados SQLite:
 
 ```bash
 pnpm db:push
 ```
 
-### 4. Validar Configuração
+Este comando criará automaticamente o arquivo de banco de dados em `./data/database.sqlite` e todas as tabelas necessárias.
+
+### 3. Validar Configuração
 
 Verifique se tudo está correto:
 
@@ -419,13 +396,13 @@ docker-compose up -d
 
 ### Problema: Erro de conexão com banco de dados
 
-**Sintomas**: `Error: connect ECONNREFUSED` ou `ER_ACCESS_DENIED_ERROR`
+**Sintomas**: `Error: Cannot open database` ou problemas ao iniciar o servidor
 
 **Solução**:
-1. Verifique se o MySQL está rodando: `systemctl status mysql` (Linux) ou Activity Monitor (macOS/Windows)
-2. Confirme as credenciais no `.env`
-3. Teste a conexão: `mysql -u avaliacao_user -p avaliacao_psicologica`
-4. Verifique o firewall e portas (3306)
+1. Verifique se o diretório `./data` existe
+2. Verifique as permissões do diretório: `chmod 755 data`
+3. Confirme o caminho no `.env`: `DATABASE_PATH=./data/database.sqlite`
+4. Execute as migrations novamente: `pnpm db:push`
 
 ### Problema: Dependências não instalam
 
@@ -452,9 +429,9 @@ docker-compose up -d
 
 **Solução**:
 1. Verifique variáveis de ambiente de teste
-2. Confirme que o banco de teste está configurado
-3. Execute testes individualmente: `pnpm vitest run nome-do-teste`
-4. Veja logs detalhados: `pnpm test --reporter=verbose`
+2. Execute testes individualmente: `pnpm vitest run nome-do-teste`
+3. Veja logs detalhados: `pnpm test --reporter=verbose`
+4. Em caso de erro de database, verifique se `./data/database.sqlite` existe
 
 ### Problema: Email não envia
 
