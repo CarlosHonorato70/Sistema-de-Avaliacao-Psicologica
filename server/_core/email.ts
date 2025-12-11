@@ -141,7 +141,7 @@ export function generateAssessmentLinkEmailTemplate(data: AssessmentLinkEmailDat
       </div>
       
       <div class="message">
-        <p>Você foi convidado(a) a responder um questionário de avaliação psicológica sobre sobre-excitabilidades.</p>
+        <p>Você foi convidado(a) a responder um questionário de avaliação psicológica sobre sobre-excitabilidades (overexcitabilities).</p>
         <p>Este questionário contém 68 questões e leva aproximadamente 15-20 minutos para ser concluído.</p>
       </div>
       
@@ -199,7 +199,7 @@ export function generateAssessmentLinkEmailText(data: AssessmentLinkEmailData): 
   return `
 Olá, ${data.patientName}!
 
-Você foi convidado(a) a responder um questionário de avaliação psicológica sobre sobre-excitabilidades.
+Você foi convidado(a) a responder um questionário de avaliação psicológica sobre sobre-excitabilidades (overexcitabilities).
 
 Este questionário contém 68 questões e leva aproximadamente 15-20 minutos para ser concluído.
 

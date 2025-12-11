@@ -136,9 +136,12 @@ export const appRouter = router({
       
       if (link) {
         // Track access audit information
-        const ipAddress = ctx.req.headers['x-forwarded-for'] as string || 
-                         ctx.req.headers['x-real-ip'] as string ||
-                         (ctx.req.socket as any)?.remoteAddress;
+        // x-forwarded-for can contain multiple IPs (comma-separated), take the first one
+        const forwardedFor = ctx.req.headers['x-forwarded-for'] as string;
+        const ipAddress = forwardedFor 
+                         ? forwardedFor.split(',')[0]?.trim()
+                         : ctx.req.headers['x-real-ip'] as string ||
+                           (ctx.req.socket as any)?.remoteAddress;
         
         // Update access audit asynchronously
         updateLinkAccessAudit(link.id, ipAddress).catch(err => {

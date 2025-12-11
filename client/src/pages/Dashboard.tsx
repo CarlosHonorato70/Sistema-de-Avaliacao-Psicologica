@@ -9,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { trpc } from "@/lib/trpc";
 import { Plus, Copy, CheckCircle2, Clock, AlertCircle, Mail, MessageCircle, Link } from "lucide-react";
 import { toast } from "sonner";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 export default function Dashboard() {
   const [isAddingPatient, setIsAddingPatient] = useState(false);
@@ -100,8 +99,14 @@ export default function Dashboard() {
       // Clean phone number (remove non-numeric characters)
       const cleanPhone = phone.replace(/\D/g, '');
       
+      // Handle country code - if phone already starts with country code, don't add it
+      // Otherwise, default to Brazil (55)
+      const phoneWithCountry = cleanPhone.startsWith('55') || cleanPhone.length > 11
+        ? cleanPhone
+        : `55${cleanPhone}`;
+      
       // Open WhatsApp with pre-filled message
-      const whatsappUrl = `https://wa.me/55${cleanPhone}?text=${encodeURIComponent(message)}`;
+      const whatsappUrl = `https://wa.me/${phoneWithCountry}?text=${encodeURIComponent(message)}`;
       window.open(whatsappUrl, '_blank');
       
       toast.success("Link gerado! Abrindo WhatsApp...");

@@ -1,0 +1,26 @@
+services:
+  # Web Service
+  - type: web
+    name: avaliacao-psicologica
+    env: node
+    region: oregon
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PORT
+        value: 10000
+
+databases:
+  # MySQL Database
+  - name: avaliacao-psicologica-db
+    databaseName: avaliacao_psicologica
+    user: avaliacao_user
+    plan: free
